@@ -309,8 +309,10 @@ section{position:relative}
 .own-legend-item{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(--gray)}
 .own-legend-dot{width:8px;height:8px;border-radius:1px}
 .tax-status{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:rgba(45,140,90,.08);border:1px solid rgba(45,140,90,.2);border-radius:2px;margin-top:16px}
+.tax-status.due{background:rgba(212,98,42,.08);border-color:rgba(212,98,42,.25)}
 .tax-status-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.15em;color:var(--gray)}
 .tax-status-val{font-size:.85rem;font-weight:600;color:var(--green)}
+.tax-status.due .tax-status-val{color:var(--orange)}
 
 /* INSPECTION PANEL */
 .inspection-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:gap}
@@ -381,6 +383,17 @@ section{position:relative}
 .tradein-success-title{font-family:var(--font-display);font-size:1.2rem;font-weight:700;color:var(--white);margin-bottom:8px}
 .tradein-success-desc{font-size:.85rem;color:var(--gray)}
 
+/* PHONE INPUT WITH COUNTRY CODE */
+.phone-input-group{display:flex;gap:8px}
+.phone-country-select{flex:0 0 132px;background:var(--offblack);border:1px solid var(--border);color:var(--white);padding:12px 10px;font-family:var(--font-body);font-size:.82rem;border-radius:2px;outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;cursor:pointer}
+.phone-country-select:focus{border-color:var(--gray)}
+.phone-country-select option{background:var(--offblack)}
+.phone-number-input{flex:1;min-width:0}
+.field-error-msg{font-size:.72rem;color:#E0574A;line-height:1.5;display:none;margin-top:2px}
+.field-error-msg.show{display:block}
+.form-input.field-invalid,.phone-country-select.field-invalid{border-color:#E0574A}
+.field-hint{font-size:.68rem;color:var(--gray-dark);line-height:1.5}
+
 /* MODAL ACTIONS */
 .modal-actions{display:flex;gap:12px;margin-top:32px;flex-wrap:wrap}
 .btn-whatsapp{display:inline-flex;align-items:center;gap:10px;background:var(--white);color:var(--black);padding:14px 28px;border-radius:2px;font-size:.85rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;border:none;cursor:pointer;transition:transform .3s var(--ease-out),box-shadow .3s,background .3s}
@@ -428,6 +441,8 @@ footer{background:var(--offblack);border-top:1px solid var(--border);padding:60p
   .modal-body{padding:20px}
   .spec-grid{grid-template-columns:1fr 1fr}
   .inspection-categories{grid-template-columns:1fr}
+  .phone-input-group{flex-direction:column}
+  .phone-country-select{flex:1 1 auto}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}}
 </style>
@@ -843,7 +858,15 @@ footer{background:var(--offblack);border-top:1px solid var(--border);padding:60p
         <div class="tradein-form" id="tradein-form">
           <div class="tradein-form-grid">
             <div class="form-group"><label>Nama Lengkap</label><input class="form-input" type="text" id="ti-name" placeholder="Nama Anda"></div>
-            <div class="form-group"><label>Nomor WhatsApp</label><input class="form-input" type="tel" id="ti-phone" placeholder="+62 8xx xxxx xxxx"></div>
+            <div class="form-group">
+              <label>Nomor WhatsApp</label>
+              <div class="phone-input-group">
+                <select class="phone-country-select" id="ti-phone-country" aria-label="Kode Negara"></select>
+                <input class="form-input phone-number-input" type="tel" id="ti-phone" placeholder="8xx xxxx xxxx" inputmode="numeric" autocomplete="tel-national">
+              </div>
+              <div class="field-hint" id="ti-phone-hint"></div>
+              <div class="field-error-msg" id="ti-phone-error"></div>
+            </div>
           </div>
           <div class="tradein-form-grid">
             <div class="form-group"><label>Merek Kendaraan Lama</label><input class="form-input" type="text" id="ti-brand" placeholder="Contoh: Toyota, BMW"></div>
@@ -900,20 +923,543 @@ footer{background:var(--offblack);border-top:1px solid var(--border);padding:60p
 <script>
 const WA_NUMBER = '6281514689097';
 
+// ====================================
+// PRODUCT DATA
+// ====================================
 const products = [
-  {id:1,type:'mobil',name:'BMW 3 Series 330i',brand:'BMW',category:'Sedan Mewah',year:2021,color:'Alpine White',price:720000000,engine:'2.0L TwinPower Turbo',condition:'Sangat Baik',mileage:'28.400 km',mileageNum:28400,status:'available',taxInfo:'Panjang s/d 2025',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSbfVgLk6WSJZ_fpZf6MrA013dySwoVmnKVVgEltjqu2g4_l29AjANgBsTZ&s=10',shortDesc:'Sensasi berkendara sejati dalam balutan kemewahan modern.',inspectionScore:148,inspCategories:[{name:'Bodi & Cat',score:49,max:50},{name:'Mesin & Transmisi',score:49,max:50},{name:'Kaki-kaki & Rem',score:27,max:30},{name:'Interior & Elektrik',score:23,max:20}],specs:[{label:'Tahun',value:'2021'},{label:'Warna',value:'Alpine White'},{label:'Mesin',value:'2.0L Turbo'},{label:'Tenaga',value:'255 HP'},{label:'Transmisi',value:'Otomatis 8-spd'},{label:'Jarak Tempuh',value:'28.400 km'},{label:'Kondisi',value:'Sangat Baik'},{label:'Pajak',value:'Panjang s/d 2025'}],history:[{date:'2021 — Pembelian Pertama',event:'Dibeli Baru dari Dealer',text:'Dibeli baru dari dealer resmi BMW Jakarta oleh eksekutif sebagai kendaraan harian premium.'},{date:'2022 — Servis 15.000 km',event:'Servis Rutin Resmi',text:'Servis rutin di BMW Authorized Service Center. Penggantian oli, filter udara, dan pengecekan rem.'},{date:'2023 — Servis 25.000 km',event:'Servis Rutin Resmi',text:'Penggantian busi, inspeksi suspensi, kalibrasi infotainment. Tidak ada kerusakan serius.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Lulus inspeksi 150 titik ZIXON sempurna.'}]},
-  {id:2,type:'motor',name:'Ducati Scrambler 800',brand:'Ducati',category:'Motor Sport Premium',year:2022,color:'Matte Black',price:310000000,engine:'803cc L-Twin',condition:'Excellent',mileage:'8.700 km',mileageNum:8700,status:'booked',taxInfo:'Panjang s/d 2026',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRA0t7DCmZra4gYtljUNZ0pp2xGhoY_o9BVHMU7nniuRvDFEZjzViZ-O_8f&s=10',shortDesc:'Jiwa pemberontak dalam kemasan Italia yang memukau.',inspectionScore:150,inspCategories:[{name:'Bodi & Rangka',score:50,max:50},{name:'Mesin & Knalpot',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Elektrik & Lampu',score:20,max:20}],specs:[{label:'Tahun',value:'2022'},{label:'Warna',value:'Matte Black'},{label:'Mesin',value:'803cc L-Twin'},{label:'Tenaga',value:'73 HP'},{label:'Transmisi',value:'Manual 6-spd'},{label:'Jarak Tempuh',value:'8.700 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2026'}],history:[{date:'2022 — Imported & Registered',event:'Unit CBU Italia',text:'Unit CBU langsung dari Italia. Didaftarkan kolektor motor mewah Jakarta.'},{date:'2023 — First Service',event:'Servis Awal Dealer Resmi',text:'Servis awal di Ducati authorized dealer. Penggantian oli Shell Advance, pengecekan rantai.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik beralih ke motor touring. Unit prima, tidak pernah jatuh.'}]},
-  {id:3,type:'mobil',name:'Toyota Land Cruiser 300',brand:'Toyota',category:'SUV Premium',year:2023,color:'Midnight Black Mica',price:2100000000,engine:'3.3L V6 Twin Turbo',condition:'Baru Sekali',mileage:'12.100 km',mileageNum:12100,status:'available',taxInfo:'Panjang s/d 2027',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSnkyT8q7Latum_Tu4sZf5PZEEV7DNkezhK-58KTpZECVINdMvIQo9bYuJN&s=10',shortDesc:'Legenda SUV abadi. Kini hadir dengan teknologi masa depan.',inspectionScore:149,inspCategories:[{name:'Bodi & Cat',score:50,max:50},{name:'Mesin & Transmisi',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Interior & Elektrik',score:19,max:20}],specs:[{label:'Tahun',value:'2023'},{label:'Warna',value:'Midnight Black'},{label:'Mesin',value:'3.3L V6 Turbo'},{label:'Tenaga',value:'305 HP'},{label:'Transmisi',value:'Otomatis 10-spd'},{label:'Jarak Tempuh',value:'12.100 km'},{label:'Kondisi',value:'Baru Sekali'},{label:'Pajak',value:'Panjang s/d 2027'}],history:[{date:'2023 — Pembelian Pertama',event:'Dibeli Baru',text:'Dibeli baru dari dealer resmi Toyota. Pengusaha Surabaya, sangat merawat kendaraan.'},{date:'2024 — Servis 10.000 km',event:'Servis Rutin',text:'Penggantian oli dan filter. Garasi tertutup, tidak pernah dipakai hujan berat.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik pindah ke luar negeri. Kondisi luar biasa, semua aksesori original.'}]},
-  {id:4,type:'motor',name:'Honda CB500F',brand:'Honda',category:'Motor Naked',year:2021,color:'Graphite Black',price:95000000,engine:'471cc Parallel Twin',condition:'Baik',mileage:'22.000 km',mileageNum:22000,status:'available',taxInfo:'Panjang s/d 2025',ownerCount:2,videoId:'dQw4w9WgXcQ',image:'https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=800&q=80',shortDesc:'Motor naked harian yang nyaman, lincah, dan tangguh.',inspectionScore:141,inspCategories:[{name:'Bodi & Rangka',score:44,max:50},{name:'Mesin & Knalpot',score:47,max:50},{name:'Kaki-kaki & Rem',score:28,max:30},{name:'Elektrik & Lampu',score:18,max:20}],specs:[{label:'Tahun',value:'2021'},{label:'Warna',value:'Graphite Black'},{label:'Mesin',value:'471cc Parallel Twin'},{label:'Tenaga',value:'47 HP'},{label:'Transmisi',value:'Manual 6-spd'},{label:'Jarak Tempuh',value:'22.000 km'},{label:'Kondisi',value:'Baik'},{label:'Pajak',value:'Panjang s/d 2025'}],history:[{date:'2021 — Pembelian Pertama',event:'Dibeli Baru',text:'Dibeli baru di dealer Honda Bandung. Dipakai mahasiswa teknik sebagai motor harian.'},{date:'2022 — Servis Berkala',event:'Servis Rutin',text:'Servis rutin setiap 4.000 km. Rekaman servis lengkap di buku garansi.'},{date:'2023 — Minor Upgrade',event:'Modifikasi Ringan',text:'Penggantian knalpot aftermarket, handgrip ergonomis, dan lampu LED aftermarket.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik wisuda dan pindah kota. Kondisi sesuai usia, terawat baik.'}]},
-  {id:5,type:'mobil',name:'Mercedes-Benz C200',brand:'Mercedes-Benz',category:'Sedan Executive',year:2020,color:'Obsidian Black',price:610000000,engine:'1.5L EQ Boost Turbo',condition:'Sangat Baik',mileage:'45.200 km',mileageNum:45200,status:'available',taxInfo:'Aktif s/d 2025',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://mercedes-ina.com/wp-content/uploads/2022/07/c200-2022-600x400.jpg',shortDesc:'Simbol status dan kecanggihan dalam satu kendaraan elegan.',inspectionScore:146,inspCategories:[{name:'Bodi & Cat',score:47,max:50},{name:'Mesin & Transmisi',score:49,max:50},{name:'Kaki-kaki & Rem',score:29,max:30},{name:'Interior & Elektrik',score:21,max:20}],specs:[{label:'Tahun',value:'2020'},{label:'Warna',value:'Obsidian Black'},{label:'Mesin',value:'1.5L EQ Boost'},{label:'Tenaga',value:'184 HP'},{label:'Transmisi',value:'Otomatis 9G-Tronic'},{label:'Jarak Tempuh',value:'45.200 km'},{label:'Kondisi',value:'Sangat Baik'},{label:'Pajak',value:'Aktif s/d 2025'}],history:[{date:'2020 — Pembelian Pertama',event:'Dibeli Baru',text:'Dibeli baru dari dealer resmi Mercedes-Benz Jakarta oleh direktur perusahaan.'},{date:'2021 — Servis Pertama',event:'Servis Rutin Resmi',text:'Servis di MB Authorized dealer, penggantian oli dan filter. Buku servis tertanda rapi.'},{date:'2022–2023 — Servis Berkala',event:'Servis & Penggantian Ban',text:'Servis rutin setiap 10.000 km. Ban diganti 2023 dengan merek original.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik upgrade ke S-Class. Interior bersih tanpa bau rokok.'}]},
-  {id:6,type:'motor',name:'Kawasaki Z900',brand:'Kawasaki',category:'Supernaked',year:2023,color:'Metallic Spark Black',price:220000000,engine:'948cc In-Line 4',condition:'Excellent',mileage:'5.500 km',mileageNum:5500,status:'sold',taxInfo:'Panjang s/d 2027',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?w=800&q=80',shortDesc:'Sang predator jalanan. Performa menggelegar, tampil tanpa kompromi.',inspectionScore:150,inspCategories:[{name:'Bodi & Rangka',score:50,max:50},{name:'Mesin & Knalpot',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Elektrik & Lampu',score:20,max:20}],specs:[{label:'Tahun',value:'2023'},{label:'Warna',value:'Metallic Black'},{label:'Mesin',value:'948cc 4-cyl'},{label:'Tenaga',value:'125 HP'},{label:'Transmisi',value:'Manual 6-spd'},{label:'Jarak Tempuh',value:'5.500 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2027'}],history:[{date:'2023 — Pembelian Baru',event:'Dibeli Baru',text:'Unit baru dari Kawasaki Motor Indonesia. Pemilik anggota club motor premium.'},{date:'2023 — First Service',event:'Servis Awal',text:'Servis awal 1.000 km di dealer resmi Kawasaki. Semua komponen sempurna.'},{date:'2024 — Masuk ZIXON',event:'Terjual',text:'Unit ini sudah terjual. Hubungi kami untuk unit sejenis.'}]},
-  {id:7,type:'mobil',name:'Porsche 911 Carrera',brand:'Porsche',category:'Sports Car',year:2023,color:'Guards Red',price:4200000000,engine:'3.0L Flat-6 Twin-Turbo',condition:'Baru Sekali',mileage:'3.200 km',mileageNum:3200,status:'available',taxInfo:'Panjang s/d 2026',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRsuIPMIc3Y__K9lYZKL1wNqnYDLHnEO38GxM_AnUx7wMkZM0F0AyZRx7M&s=10',shortDesc:'Ikon roda dua generasi. Kenikmatan berkendara dalam bentuk paling murni.',inspectionScore:150,inspCategories:[{name:'Bodi & Cat',score:50,max:50},{name:'Mesin & Transmisi',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Interior & Elektrik',score:20,max:20}],specs:[{label:'Tahun',value:'2023'},{label:'Warna',value:'Guards Red'},{label:'Mesin',value:'3.0L Flat-6 Turbo'},{label:'Tenaga',value:'385 HP'},{label:'Transmisi',value:'PDK 8-spd'},{label:'Jarak Tempuh',value:'3.200 km'},{label:'Kondisi',value:'Baru Sekali'},{label:'Pajak',value:'Panjang s/d 2026'}],history:[{date:'2023 — Pembelian Baru',event:'Dibeli Baru',text:'Dibeli baru dari dealer resmi Porsche Jakarta. Kolektor mobil sport eksklusif.'},{date:'2023 — Servis Awal',event:'Servis Rutin',text:'Servis awal di Porsche Authorized Center. Semua komponen berjalan sempurna.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik mendapat unit terbaru. Kondisi nyaris seperti baru.'}]},
-  {id:8,type:'motor',name:'Kawasaki Ninja ZX-25R',brand:'Kawasaki',category:'Motor Sport',year:2023,color:'Metallic Green',price:120000000,engine:'250cc Inline-4',condition:'Excellent',mileage:'1.000 km',mileageNum:1000,status:'available',taxInfo:'Panjang s/d 2027',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSRhkPhxcepmgYwcyZhDH86WxV6A_JfVvudCBF5rGijMw&s=10',shortDesc:'Motor sport 4 silinder yang lincah dan bertenaga. Cocok untuk penggemar kecepatan.',inspectionScore:150,inspCategories:[{name:'Bodi & Rangka',score:50,max:50},{name:'Mesin & Knalpot',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Elektrik & Lampu',score:20,max:20}],specs:[{label:'Tahun',value:'2023'},{label:'Warna',value:'Metallic Green'},{label:'Mesin',value:'250cc Inline-4'},{label:'Tenaga',value:'50 HP'},{label:'Transmisi',value:'Manual 6-spd'},{label:'Jarak Tempuh',value:'1.000 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2027'}],history:[{date:'2023 — Pembelian Baru',event:'Dibeli Baru',text:'Dibeli baru dari dealer resmi Kawasaki. Penggemar motor sport.'},{date:'2024 — Servis Berkala',event:'Servis Rutin',text:'Servis rutin di dealer resmi Kawasaki.'},{date:'2025 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik pindah ke luar negeri. Kondisi luar biasa, aksesori original semua.'}]},
-  {id:9,type:'mobil',name:'McLaren Senna',brand:'McLaren',category:'Supercar',year:2022,color:'Volcano Red',price:50000000000,engine:'4.0L V8 Twin-Turbo',condition:'Excellent',mileage:'700 km',mileageNum:700,status:'booked',taxInfo:'Panjang s/d 2028',ownerCount:1,videoId:'dQw4w9WgXcQ',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSj9Xqb1AwUTPKlxTe1zEJ8FSh8bsnrUMM80vgUeFzKZckoB3DjtpfwcVAu&s=10',shortDesc:'Supercar eksotis dengan performa luar biasa dan desain aerodinamis memukau.',inspectionScore:150,inspCategories:[{name:'Bodi & Aerodinamika',score:50,max:50},{name:'Mesin & Transmisi',score:50,max:50},{name:'Kaki-kaki & Rem',score:30,max:30},{name:'Interior & Elektrik',score:20,max:20}],specs:[{label:'Tahun',value:'2022'},{label:'Warna',value:'Volcano Red'},{label:'Mesin',value:'4.0L V8 Twin-Turbo'},{label:'Tenaga',value:'800 HP'},{label:'Transmisi',value:'SSG 7-spd'},{label:'Jarak Tempuh',value:'700 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2028'}],history:[{date:'2022 — Pembelian Baru',event:'Unit Import Eksklusif',text:'Dibeli baru dari dealer resmi McLaren. Kolektor supercar yang mengutamakan eksklusivitas.'},{date:'2023 — Servis Berkala',event:'Servis Rutin',text:'Servis rutin di dealer resmi McLaren. Semua komponen optimal.'},{date:'2024 — Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik pindah ke luar negeri. Kondisi luar biasa, performa optimal.'}]},
-  {id:10,type:'mobil',name:'Ferrari F80',brand:'Ferrari',category:'Supercar',year:2023,color:'Rosso Corsa',price:1000000000,engine:'4.0L V8 Twin-Turbo',condition:'Excellent',mileage:'900 km',mileageNum:900,status:'available',taxInfo:'Panjang s/d 2028',ownerCount:1,videoId:'dqkmwmewww',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSPQeE8GZowlvq_qlaJpRcxzLs0hK9pOteVJtE0adxX6sdhDR0q19uf4bg&s=10',shortDesc:'Supercar Legendary dengan performa luar biasa dan desain aerodinamis memukai.',inspectionScore:150,inspCategories:[{name:'Bodi & Aestetika',score:50,max:50},{name:'Mesin & Transmisi',score:70,max:70},{name:'kaki-kaki & Rem',score:40,max:40},{name:'Interior & Elektrik',score:30,max:30}],specs:[{label:'Tahun',value:'2023'},{label:'Warna',value:'Rosso Corsa'},{label:'Mesin',value:'4.0L V8 Twhin-Turbo'},{label:'Tenaga',value:'800 HP'},{label:'Transmisi',value:'SSG 7-spd'},{label:'Jarak Tempuh',value:'900 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2028'}],history:[{date:'2023 - Pembelian Baru',event:'Unit Import Eksklusif',text:'Dibeli baru dari dealer resmi McLaren. Kolektor supercar yang mengutamakan eksklusivitas.'},{date:'2024 - Servis Berkala',event:'Servis Rutin',text:'Servis rutin di dealer resmi Ferrari. Semua komponen optomal.'},{date:'2025 - Masuk ZIXON',event:'Inspeksi & Akusisi',text:'Pemilik pindah ke luar negeri.Kondisi luar biasa, performa optimal.'}]},
-  {id:11,type:'motor',name:'Yamaha R1',brand:'Yamaha',category:'Motor Sport',year:2024,color:'Matte Blue',price:350000000,engine:'998cc Inline-4',condition:'Excellent',mileage:'500 km',mileageNum:700,status:'available',taxInfo:'Panjang s/d 2028',ownerCount:1,videoId:'bbjadajjajabjadad',image:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTnDgxuulSVgboAdMYxIrRvdXUsA7FXEjYTaKoub7q0K6YDQE1Unkiod78&s=10',shortDesc:'Motor sport legendaris dengan performa tinggi dan teknologi canggih.',inspectionScore:200,inspCategories:[{name:'Bodi & Rangka',score:40,max:50},{name:'Mesin & Knalpot',score:80,max:80},{name:'kaki-kaki & Rem',score:50,max:50},{name:'Elektrik & Lampu',score:30,max:30}],specs:[{label:'Tahun',value:'2024'},{label:'warna',value:'Matte Blue'},{label:'Mesin',value:'998cc Inline-4'},{label:'Tenaga',value:'200 HP'},{label:'Transmisi',value:'Manual 6-spd'},{label:'Jarak Tempuh',value:'500 km'},{label:'Kondisi',value:'Excellent'},{label:'Pajak',value:'Panjang s/d 2028'}],history:[{date:'2024 - Pembelian Baru',event:'Unit Import Eksklusif',text:'Dibeli baru dari dealer resmi Yamahaa. penggemar motor sport yang mengutamakan performa.'},{date:'2025 - Servis Berkala',event:'Servis Rutin',text:'Servis rutin di dealer resmi Yamaha.'},{date:'2025 - Masuk ZIXON',event:'Inspeksi & Akuisisi',text:'Pemilik pindah ke luar negeri. Kondisi luar biasa, performa optimal.'}]},
-  
-]
+  {
+    id: 1,
+    name: 'BMW M3 Competition',
+    type: 'mobil',
+    brand: 'BMW',
+    category: 'Sedan Sport',
+    year: 2022,
+    price: 2150000000,
+    mileage: '12.400 km',
+    mileageNum: 12400,
+    color: 'Isle of Man Green',
+    image: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'M3 Competition kondisi istimewa, full service record resmi BMW.',
+    status: 'available',
+    condition: 'Sangat Baik',
+    engine: '3.0L Twin-Turbo Inline-6, 510 HP',
+    ownerCount: 2,
+    taxInfo: 'Aktif s/d Maret 2027',
+    inspectionScore: 146,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'A/T 8-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 98'},
+      {label:'Kapasitas Mesin', value:'2993 cc'},
+      {label:'Tenaga', value:'510 HP'},
+      {label:'Warna', value:'Isle of Man Green'},
+      {label:'Plat', value:'B - Genap'},
+      {label:'Interior', value:'Kulit Merah Kontras'},
+      {label:'Drive', value:'RWD'}
+    ],
+    history: [
+      {date:'Jan 2022', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi BMW Jakarta oleh pemilik pertama.'},
+      {date:'Jun 2023', event:'Servis Berkala', text:'Servis 20.000 km di bengkel resmi BMW, ganti oli dan filter lengkap.'},
+      {date:'Nov 2024', event:'Pindah Tangan', text:'Dibeli oleh pemilik kedua, kondisi masih sangat terawat.'},
+      {date:'Mei 2026', event:'Masuk ZIXON', text:'Melewati inspeksi 150 titik dan resmi masuk katalog ZIXON.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:49, max:50},
+      {name:'Transmisi', score:29, max:30},
+      {name:'Kaki-Kaki & Rem', score:28, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Interior & Elektronik', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 2,
+    name: 'Mercedes-Benz C300 AMG Line',
+    type: 'mobil',
+    brand: 'Mercedes-Benz',
+    category: 'Sedan Executive',
+    year: 2021,
+    price: 985000000,
+    mileage: '28.100 km',
+    mileageNum: 28100,
+    color: 'Obsidian Black',
+    image: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'C300 AMG Line, interior mulus, riwayat servis resmi Mercedes-Benz.',
+    status: 'available',
+    condition: 'Baik',
+    engine: '2.0L Turbo Inline-4, 258 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d Agustus 2026',
+    inspectionScore: 141,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'A/T 9-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 92'},
+      {label:'Kapasitas Mesin', value:'1991 cc'},
+      {label:'Tenaga', value:'258 HP'},
+      {label:'Warna', value:'Obsidian Black'},
+      {label:'Plat', value:'B - Ganjil'},
+      {label:'Interior', value:'Kulit Hitam AMG'},
+      {label:'Drive', value:'RWD'}
+    ],
+    history: [
+      {date:'Mar 2021', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi Mercedes-Benz oleh pemilik tunggal.'},
+      {date:'Sep 2022', event:'Servis Berkala', text:'Servis rutin 20.000 km, semua part original.'},
+      {date:'Feb 2026', event:'Masuk ZIXON', text:'Trade-in ke ZIXON dan lolos inspeksi 150 titik.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:47, max:50},
+      {name:'Transmisi', score:28, max:30},
+      {name:'Kaki-Kaki & Rem', score:27, max:30},
+      {name:'Eksterior & Cat', score:19, max:20},
+      {name:'Interior & Elektronik', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 3,
+    name: 'Toyota Alphard Q 2.5',
+    type: 'mobil',
+    brand: 'Toyota',
+    category: 'MPV Premium',
+    year: 2023,
+    price: 1195000000,
+    mileage: '9.800 km',
+    mileageNum: 9800,
+    color: 'White Pearl',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRs4-0_G3d3t5w2v3t-ePM2whL3R_FRqWOyj6zTzS4-nK5xfefyDocZy-Q&s=10',
+    shortDesc: 'Alphard Q like new, jarak tempuh rendah, satu tangan pemilik.',
+    status: 'booked',
+    condition: 'Sangat Baik',
+    engine: '2.5L Dual VVT-i, 181 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d Desember 2026',
+    inspectionScore: 148,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'CVT'},
+      {label:'Bahan Bakar', value:'Bensin RON 92'},
+      {label:'Kapasitas Mesin', value:'2494 cc'},
+      {label:'Tenaga', value:'181 HP'},
+      {label:'Warna', value:'White Pearl'},
+      {label:'Plat', value:'B - Genap'},
+      {label:'Interior', value:'Captain Seat Kulit Krem'},
+      {label:'Drive', value:'FWD'}
+    ],
+    history: [
+      {date:'Apr 2023', event:'Pembelian Baru', text:'Dibeli baru dari Auto2000, unit indent langsung dari pabrik.'},
+      {date:'Jan 2025', event:'Servis Berkala', text:'Servis 10.000 km lengkap di bengkel resmi Toyota.'},
+      {date:'Jun 2026', event:'Booked', text:'Sedang dalam proses booking oleh calon pembeli.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:49, max:50},
+      {name:'Transmisi', score:30, max:30},
+      {name:'Kaki-Kaki & Rem', score:29, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Interior & Elektronik', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 4,
+    name: 'Porsche 911 Carrera S',
+    type: 'mobil',
+    brand: 'Porsche',
+    category: 'Sports Car',
+    year: 2020,
+    price: 3450000000,
+    mileage: '15.600 km',
+    mileageNum: 15600,
+    color: 'GT Silver Metallic',
+    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: '911 Carrera S generasi 992, kondisi collector grade.',
+    status: 'available',
+    condition: 'Sangat Baik',
+    engine: '3.0L Twin-Turbo Flat-6, 443 HP',
+    ownerCount: 2,
+    taxInfo: 'Aktif s/d Oktober 2026',
+    inspectionScore: 149,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'PDK 8-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 98'},
+      {label:'Kapasitas Mesin', value:'2981 cc'},
+      {label:'Tenaga', value:'443 HP'},
+      {label:'Warna', value:'GT Silver Metallic'},
+      {label:'Plat', value:'B - Ganjil'},
+      {label:'Interior', value:'Kulit Full Black'},
+      {label:'Drive', value:'RWD'}
+    ],
+    history: [
+      {date:'Jul 2020', event:'Pembelian Baru', text:'Unit CBU dibeli baru oleh kolektor mobil sport di Jakarta.'},
+      {date:'Aug 2022', event:'Pindah Tangan', text:'Dijual ke pemilik kedua dengan histori perawatan lengkap.'},
+      {date:'Mar 2026', event:'Masuk ZIXON', text:'Melalui proses inspeksi menyeluruh sebelum masuk katalog.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:50, max:50},
+      {name:'Transmisi', score:30, max:30},
+      {name:'Kaki-Kaki & Rem', score:29, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Interior & Elektronik', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 5,
+    name: 'McLaren GT Luxe',
+    type: 'mobil',
+    brand: 'McLaren',
+    category: 'Grand Tourer',
+    year: 2021,
+    price: 6200000000,
+    mileage: '4.200 km',
+    mileageNum: 4200,
+    color: 'Sicilian Yellow',
+    image: 'https://images.unsplash.com/photo-1621135802920-133df287f89c?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'McLaren GT jarak tempuh sangat rendah, kondisi showroom.',
+    status: 'sold',
+    condition: 'Sangat Baik',
+    engine: '4.0L Twin-Turbo V8, 612 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d Juli 2026',
+    inspectionScore: 150,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'SSG 7-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 98'},
+      {label:'Kapasitas Mesin', value:'3994 cc'},
+      {label:'Tenaga', value:'612 HP'},
+      {label:'Warna', value:'Sicilian Yellow'},
+      {label:'Plat', value:'B - Genap'},
+      {label:'Interior', value:'Kulit Nappa Custom'},
+      {label:'Drive', value:'RWD'}
+    ],
+    history: [
+      {date:'Feb 2021', event:'Pembelian Baru', text:'Unit CBU pemesanan khusus, satu-satunya di warna ini di Indonesia.'},
+      {date:'Des 2025', event:'Masuk ZIXON', text:'Konsinyasi eksklusif dari kolektor.'},
+      {date:'Jun 2026', event:'Terjual', text:'Berhasil terjual ke kolektor baru di Bali.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:50, max:50},
+      {name:'Transmisi', score:30, max:30},
+      {name:'Kaki-Kaki & Rem', score:30, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Interior & Elektronik', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 6,
+    name: 'Toyota Fortuner VRZ 4x2',
+    type: 'mobil',
+    brand: 'Toyota',
+    category: 'SUV',
+    year: 2020,
+    price: 465000000,
+    mileage: '41.200 km',
+    mileageNum: 41200,
+    color: 'Grey Metallic',
+    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'Fortuner VRZ terawat, cocok untuk keluarga dan luar kota.',
+    status: 'available',
+    condition: 'Baik',
+    engine: '2.4L Diesel D-4D, 150 HP',
+    ownerCount: 2,
+    taxInfo: 'Aktif s/d Februari 2027',
+    inspectionScore: 138,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'A/T 6-Speed'},
+      {label:'Bahan Bakar', value:'Solar/Diesel'},
+      {label:'Kapasitas Mesin', value:'2393 cc'},
+      {label:'Tenaga', value:'150 HP'},
+      {label:'Warna', value:'Grey Metallic'},
+      {label:'Plat', value:'B - Ganjil'},
+      {label:'Interior', value:'Kulit Hitam'},
+      {label:'Drive', value:'RWD'}
+    ],
+    history: [
+      {date:'May 2020', event:'Pembelian Baru', text:'Dibeli baru dari Auto2000 oleh pemilik pertama.'},
+      {date:'Jan 2023', event:'Pindah Tangan', text:'Dijual ke pemilik kedua dengan servis rutin terjaga.'},
+      {date:'Apr 2026', event:'Masuk ZIXON', text:'Trade-in unit, lolos inspeksi 150 titik dengan sedikit catatan minor.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:44, max:50},
+      {name:'Transmisi', score:27, max:30},
+      {name:'Kaki-Kaki & Rem', score:26, max:30},
+      {name:'Eksterior & Cat', score:18, max:20},
+      {name:'Interior & Elektronik', score:14, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 7,
+    name: 'Ducati Panigale V4 S',
+    type: 'motor',
+    brand: 'Ducati',
+    category: 'Superbike',
+    year: 2022,
+    price: 985000000,
+    mileage: '3.100 km',
+    mileageNum: 3100,
+    color: 'Ducati Red',
+    image: 'https://images.unsplash.com/photo-1568772585407-9361f9bf3a87?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'Panigale V4 S kondisi mulus, jarang dipakai, full original.',
+    status: 'available',
+    condition: 'Sangat Baik',
+    engine: '1103cc Desmosedici Stradale V4, 214 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d Januari 2027',
+    inspectionScore: 145,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'Manual 6-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 98'},
+      {label:'Kapasitas Mesin', value:'1103 cc'},
+      {label:'Tenaga', value:'214 HP'},
+      {label:'Warna', value:'Ducati Red'},
+      {label:'Plat', value:'B - Genap'},
+      {label:'Kelengkapan', value:'STNK & BPKB Lengkap'},
+      {label:'Suspensi', value:'Öhlins Semi-Aktif'}
+    ],
+    history: [
+      {date:'Jun 2022', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi Ducati Indonesia.'},
+      {date:'Nov 2023', event:'Servis Berkala', text:'Servis besar di bengkel resmi, ganti timing belt dan oli.'},
+      {date:'Mei 2026', event:'Masuk ZIXON', text:'Konsinyasi dari kolektor motor sport.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:48, max:50},
+      {name:'Transmisi & Kopling', score:29, max:30},
+      {name:'Kaki-Kaki & Rem', score:28, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Kelistrikan', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 8,
+    name: 'Kawasaki Ninja ZX-10R',
+    type: 'motor',
+    brand: 'Kawasaki',
+    category: 'Superbike',
+    year: 2021,
+    price: 385000000,
+    mileage: '7.400 km',
+    mileageNum: 7400,
+    color: 'Lime Green',
+    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSJGfsEBFxkPOm3PvT3twYc4XGQpaAxgtmV1NEocUA1ZA5QLW1WKN_y8EG2&s=10',
+    shortDesc: 'ZX-10R kondisi standar pabrik, riwayat servis lengkap.',
+    status: 'available',
+    condition: 'Baik',
+    engine: '998cc Inline-4, 203 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d September 2026',
+    inspectionScore: 136,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'Manual 6-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 95'},
+      {label:'Kapasitas Mesin', value:'998 cc'},
+      {label:'Tenaga', value:'203 HP'},
+      {label:'Warna', value:'Lime Green'},
+      {label:'Plat', value:'B - Ganjil'},
+      {label:'Kelengkapan', value:'STNK & BPKB Lengkap'},
+      {label:'Suspensi', value:'Showa Balance Free'}
+    ],
+    history: [
+      {date:'Mar 2021', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi Kawasaki.'},
+      {date:'Jul 2024', event:'Servis Berkala', text:'Servis rutin lengkap termasuk penggantian ban.'},
+      {date:'Feb 2026', event:'Masuk ZIXON', text:'Trade-in unit dengan kondisi standar, lolos inspeksi.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:45, max:50},
+      {name:'Transmisi & Kopling', score:27, max:30},
+      {name:'Kaki-Kaki & Rem', score:26, max:30},
+      {name:'Eksterior & Cat', score:18, max:20},
+      {name:'Kelistrikan', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 9,
+    name: 'Honda CBR1000RR-R Fireblade',
+    type: 'motor',
+    brand: 'Honda',
+    category: 'Superbike',
+    year: 2023,
+    price: 495000000,
+    mileage: '2.050 km',
+    mileageNum: 2050,
+    color: 'Grand Prix Red',
+    image: 'https://images.unsplash.com/photo-1591637333184-19aa84b3e01f?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'CBR1000RR-R nyaris baru, garansi resmi masih berjalan.',
+    status: 'booked',
+    condition: 'Sangat Baik',
+    engine: '999.9cc Inline-4, 214 HP',
+    ownerCount: 1,
+    taxInfo: 'Aktif s/d April 2027',
+    inspectionScore: 147,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'Manual 6-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 98'},
+      {label:'Kapasitas Mesin', value:'999.9 cc'},
+      {label:'Tenaga', value:'214 HP'},
+      {label:'Warna', value:'Grand Prix Red'},
+      {label:'Plat', value:'B - Genap'},
+      {label:'Kelengkapan', value:'STNK & BPKB Lengkap'},
+      {label:'Suspensi', value:'Öhlins Semi-Aktif'}
+    ],
+    history: [
+      {date:'Feb 2023', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi Honda Big Wing.'},
+      {date:'Jan 2025', event:'Servis Berkala', text:'Servis ringan rutin, kondisi sangat terjaga.'},
+      {date:'Jun 2026', event:'Booked', text:'Sedang proses booking oleh pembeli.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:49, max:50},
+      {name:'Transmisi & Kopling', score:29, max:30},
+      {name:'Kaki-Kaki & Rem', score:29, max:30},
+      {name:'Eksterior & Cat', score:20, max:20},
+      {name:'Kelistrikan', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  },
+  {
+    id: 10,
+    name: 'BMW R 1250 GS Adventure',
+    type: 'motor',
+    brand: 'BMW',
+    category: 'Adventure Touring',
+    year: 2020,
+    price: 425000000,
+    mileage: '18.900 km',
+    mileageNum: 18900,
+    color: 'Rallye Blue',
+    image: 'https://images.unsplash.com/photo-1622185135505-2d795003994a?q=80&w=1200&auto=format&fit=crop',
+    shortDesc: 'GS Adventure siap touring jarak jauh, perlengkapan lengkap.',
+    status: 'available',
+    condition: 'Baik',
+    engine: '1254cc Boxer Twin, 136 HP',
+    ownerCount: 2,
+    taxInfo: 'Belum Diperpanjang',
+    inspectionScore: 132,
+    videoId: 'M7lc1UVf-VE',
+    specs: [
+      {label:'Transmisi', value:'Manual 6-Speed'},
+      {label:'Bahan Bakar', value:'Bensin RON 95'},
+      {label:'Kapasitas Mesin', value:'1254 cc'},
+      {label:'Tenaga', value:'136 HP'},
+      {label:'Warna', value:'Rallye Blue'},
+      {label:'Plat', value:'B - Ganjil'},
+      {label:'Kelengkapan', value:'Box Samping & Top Case'},
+      {label:'Suspensi', value:'BMW Dynamic ESA'}
+    ],
+    history: [
+      {date:'Aug 2020', event:'Pembelian Baru', text:'Dibeli baru dari dealer resmi BMW Motorrad.'},
+      {date:'Oct 2022', event:'Pindah Tangan', text:'Dijual ke pemilik kedua yang aktif touring.'},
+      {date:'Mar 2026', event:'Masuk ZIXON', text:'Masuk katalog dengan catatan pajak perlu segera diperpanjang.'}
+    ],
+    inspCategories: [
+      {name:'Mesin & Performa', score:44, max:50},
+      {name:'Transmisi & Kopling', score:26, max:30},
+      {name:'Kaki-Kaki & Rem', score:25, max:30},
+      {name:'Eksterior & Cat', score:17, max:20},
+      {name:'Kelistrikan', score:15, max:15},
+      {name:'Dokumen & Legalitas', score:5, max:5}
+    ]
+  }
+];
+
+// ====================================
+// COUNTRY / PHONE CONFIG
+// ====================================
+// minLen/maxLen = jumlah digit nomor lokal SETELAH kode negara (tanpa angka 0 di depan)
+const COUNTRIES = [
+  {code:'ID',dial:'62',name:'Indonesia',flag:'🇮🇩',minLen:8,maxLen:12,example:'8123456789'},
+  {code:'MY',dial:'60',name:'Malaysia',flag:'🇲🇾',minLen:8,maxLen:10,example:'123456789'},
+  {code:'SG',dial:'65',name:'Singapura',flag:'🇸🇬',minLen:8,maxLen:8,example:'81234567'},
+  {code:'TH',dial:'66',name:'Thailand',flag:'🇹🇭',minLen:8,maxLen:9,example:'812345678'},
+  {code:'PH',dial:'63',name:'Filipina',flag:'🇵🇭',minLen:10,maxLen:10,example:'9123456789'},
+  {code:'VN',dial:'84',name:'Vietnam',flag:'🇻🇳',minLen:9,maxLen:10,example:'912345678'},
+  {code:'AU',dial:'61',name:'Australia',flag:'🇦🇺',minLen:9,maxLen:9,example:'412345678'},
+  {code:'US',dial:'1',name:'Amerika Serikat',flag:'🇺🇸',minLen:10,maxLen:10,example:'2015550123'},
+  {code:'GB',dial:'44',name:'Inggris',flag:'🇬🇧',minLen:9,maxLen:10,example:'7123456789'},
+  {code:'AE',dial:'971',name:'Uni Emirat Arab',flag:'🇦🇪',minLen:8,maxLen:9,example:'501234567'},
+  {code:'SA',dial:'966',name:'Arab Saudi',flag:'🇸🇦',minLen:9,maxLen:9,example:'512345678'},
+  {code:'JP',dial:'81',name:'Jepang',flag:'🇯🇵',minLen:9,maxLen:10,example:'9012345678'},
+  {code:'CN',dial:'86',name:'Tiongkok',flag:'🇨🇳',minLen:11,maxLen:11,example:'13812345678'},
+  {code:'IN',dial:'91',name:'India',flag:'🇮🇳',minLen:10,maxLen:10,example:'9123456780'},
+  {code:'KR',dial:'82',name:'Korea Selatan',flag:'🇰🇷',minLen:9,maxLen:10,example:'1012345678'},
+  {code:'NL',dial:'31',name:'Belanda',flag:'🇳🇱',minLen:9,maxLen:9,example:'612345678'},
+  {code:'DE',dial:'49',name:'Jerman',flag:'🇩🇪',minLen:10,maxLen:11,example:'15123456789'},
+];
+
+function getCountry(dial){return COUNTRIES.find(c=>c.dial===dial)||COUNTRIES[0]}
+
+function populateCountrySelect(){
+  const sel=document.getElementById('ti-phone-country');
+  sel.innerHTML=COUNTRIES.map(c=>`<option value="${c.dial}"${c.code==='ID'?' selected':''}>${c.flag} +${c.dial} ${c.code}</option>`).join('');
+  updatePhoneHint();
+}
+
+function updatePhoneHint(){
+  const dial=document.getElementById('ti-phone-country').value;
+  const c=getCountry(dial);
+  document.getElementById('ti-phone-hint').textContent=`Format: +${c.dial} ${c.example} (tanpa angka 0 di depan)`;
+}
+
+// Validasi nomor: hanya digit, panjang sesuai negara, tidak boleh diawali 0,
+// dan tidak boleh berupa pola berulang/asal seperti 000000, 123456, dst.
+function validatePhoneNumber(rawNumber,dial){
+  const c=getCountry(dial);
+  const digitsOnly=rawNumber.replace(/[^0-9]/g,'');
+
+  if(!digitsOnly){
+    return{valid:false,message:'Nomor WhatsApp wajib diisi.'};
+  }
+  if(/[^0-9]/.test(rawNumber.replace(/[\s-]/g,''))){
+    return{valid:false,message:'Nomor hanya boleh berisi angka.'};
+  }
+  if(digitsOnly.startsWith('0')){
+    return{valid:false,message:'Jangan tulis angka 0 di depan setelah memilih kode negara (contoh: 812xxxxxxx, bukan 0812xxxxxxx).'};
+  }
+  if(digitsOnly.length<c.minLen||digitsOnly.length>c.maxLen){
+    const range=c.minLen===c.maxLen?`${c.minLen} digit`:`${c.minLen}–${c.maxLen} digit`;
+    return{valid:false,message:`Nomor untuk +${c.dial} (${c.name}) harus ${range} setelah kode negara.`};
+  }
+  if(/^(\d)\1+$/.test(digitsOnly)){
+    return{valid:false,message:'Nomor tidak valid — semua digit tidak boleh sama.'};
+  }
+  if(/^0123456789|^1234567890|^123456789$/.test(digitsOnly)){
+    return{valid:false,message:'Nomor tidak valid — sepertinya bukan nomor asli.'};
+  }
+  return{valid:true,message:'',digits:digitsOnly,full:c.dial+digitsOnly,display:`+${c.dial} ${digitsOnly}`};
+}
+
+function setFieldError(inputEl,selectEl,errorEl,message){
+  if(message){
+    inputEl.classList.add('field-invalid');
+    selectEl.classList.add('field-invalid');
+    errorEl.textContent=message;
+    errorEl.classList.add('show');
+  }else{
+    inputEl.classList.remove('field-invalid');
+    selectEl.classList.remove('field-invalid');
+    errorEl.textContent='';
+    errorEl.classList.remove('show');
+  }
+}
+
+function livePhoneCheck(){
+  const numInput=document.getElementById('ti-phone');
+  const countrySel=document.getElementById('ti-phone-country');
+  const errEl=document.getElementById('ti-phone-error');
+  const val=numInput.value.trim();
+  if(!val){setFieldError(numInput,countrySel,errEl,'');return}
+  const res=validatePhoneNumber(val,countrySel.value);
+  setFieldError(numInput,countrySel,errEl,res.valid?'':res.message);
+}
+
 // ====================================
 // FILTER & SORT STATE
 // ====================================
@@ -1191,6 +1737,9 @@ function openModal(id){
     </div>
   `).join('');
 
+  const taxWrap=document.getElementById('modal-tax-status');
+  const taxDue=/belum|jatuh tempo|mati/i.test(p.taxInfo);
+  taxWrap.classList.toggle('due',taxDue);
   document.getElementById('modal-tax-val').textContent=p.taxInfo;
 
   // Inspection
@@ -1225,6 +1774,10 @@ function openModal(id){
   // Reset tradein form
   document.getElementById('tradein-form').style.display='grid';
   document.getElementById('tradein-success').classList.remove('show');
+  document.getElementById('ti-phone').value='';
+  document.getElementById('ti-phone-country').value='62';
+  updatePhoneHint();
+  setFieldError(document.getElementById('ti-phone'),document.getElementById('ti-phone-country'),document.getElementById('ti-phone-error'),'');
 
   // Reset tabs
   switchModalTab('overview');
@@ -1369,14 +1922,31 @@ Email: cihuy@zixon.id`;
 // ====================================
 function submitTradeIn(){
   const name=document.getElementById('ti-name').value.trim();
-  const phone=document.getElementById('ti-phone').value.trim();
+  const phoneRaw=document.getElementById('ti-phone').value.trim();
+  const dial=document.getElementById('ti-phone-country').value;
   const brand=document.getElementById('ti-brand').value.trim();
   const model=document.getElementById('ti-model').value.trim();
-  if(!name||!phone||!brand||!model){showToast('Mohon lengkapi data nama, nomor WA, merek, dan model');return}
+
+  const numInput=document.getElementById('ti-phone');
+  const countrySel=document.getElementById('ti-phone-country');
+  const errEl=document.getElementById('ti-phone-error');
+
+  if(!name||!brand||!model){showToast('Mohon lengkapi data nama, merek, dan model');return}
+
+  const phoneCheck=validatePhoneNumber(phoneRaw,dial);
+  if(!phoneCheck.valid){
+    setFieldError(numInput,countrySel,errEl,phoneCheck.message);
+    numInput.focus();
+    showToast('Nomor WhatsApp tidak valid');
+    return;
+  }
+  setFieldError(numInput,countrySel,errEl,'');
+
+  const countryInfo=getCountry(dial);
 
   // Send via WhatsApp
   const p=currentProduct;
-  const msg=encodeURIComponent(`*PERMINTAAN TUKAR TAMBAH — ZIXON*\n\n👤 Nama: ${name}\n📱 WA: ${phone}\n\n*Kendaraan yang Diminati:*\n${p?`🚗 ${p.name} (${formatPrice(p?p.price:0)})`:'—'}\n\n*Kendaraan Lama:*\n🏷 ${brand} ${model}\n🛣 KM: ${document.getElementById('ti-km').value||'—'}\n📋 Kondisi: ${document.getElementById('ti-condition').value||'—'}\n\n📝 Catatan: ${document.getElementById('ti-notes').value||'—'}`);
+  const msg=encodeURIComponent(`*PERMINTAAN TUKAR TAMBAH — ZIXON*\n\n👤 Nama: ${name}\n📱 WA: ${countryInfo.flag} ${phoneCheck.display}\n\n*Kendaraan yang Diminati:*\n${p?`🚗 ${p.name} (${formatPrice(p?p.price:0)})`:'—'}\n\n*Kendaraan Lama:*\n🏷 ${brand} ${model}\n🛣 KM: ${document.getElementById('ti-km').value||'—'}\n📋 Kondisi: ${document.getElementById('ti-condition').value||'—'}\n\n📝 Catatan: ${document.getElementById('ti-notes').value||'—'}`);
 
   window.open(`https://wa.me/${WA_NUMBER}?text=${msg}`,'_blank');
   document.getElementById('tradein-form').style.display='none';
@@ -1509,6 +2079,13 @@ window.addEventListener('DOMContentLoaded',()=>{
   initScrollAnimations();
   initCursor();
   runLoader();
+  populateCountrySelect();
+  document.getElementById('ti-phone-country').addEventListener('change',()=>{
+    updatePhoneHint();
+    livePhoneCheck();
+  });
+  document.getElementById('ti-phone').addEventListener('input',livePhoneCheck);
+  document.getElementById('ti-phone').addEventListener('blur',livePhoneCheck);
 });
 </script>
 </body>
